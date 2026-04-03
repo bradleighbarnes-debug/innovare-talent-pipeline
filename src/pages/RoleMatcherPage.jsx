@@ -1,26 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api.js';
-import Badge from '../components/Badge.jsx';
 import DetailPanel from '../components/DetailPanel.jsx';
 
 const ROLES = [
-  { id: 'Speech & Audio ML Engineer', short: 'Speech & Audio ML', color: 'brand-light', gradient: 'from-brand-light/20 to-brand-mid/5' },
-  { id: 'ML Engineer', short: 'ML Engineer', color: 'brand-mid', gradient: 'from-brand-mid/20 to-brand-deep/5' },
-  { id: 'AI Engineer', short: 'AI Engineer', color: 'purple', gradient: 'from-purple/20 to-purple/5' },
-  { id: 'Research Scientist', short: 'Research Scientist', color: 'success', gradient: 'from-success/20 to-success/5' },
-  { id: 'Forward Deployed Engineer', short: 'Forward Deployed', color: 'warning', gradient: 'from-warning/20 to-warning/5' },
-  { id: 'NLP Engineer', short: 'NLP Engineer', color: 'brand-light', gradient: 'from-brand-light/15 to-brand-light/5' },
-  { id: 'Staff Software Engineer', short: 'Staff SWE', color: 'brand-mid', gradient: 'from-brand-mid/15 to-brand-mid/5' },
-  { id: 'Senior Software Engineer', short: 'Senior SWE', color: 'text-muted', gradient: 'from-text-dim/15 to-text-dim/5' },
-  { id: 'Software Engineer', short: 'SWE', color: 'text-dim', gradient: 'from-text-dim/10 to-text-dim/5' },
-  { id: 'Product Engineer', short: 'Product Eng', color: 'purple', gradient: 'from-purple/15 to-purple/5' },
-  { id: 'Engineering Leadership', short: 'Leadership', color: 'danger', gradient: 'from-danger/20 to-danger/5' },
-  { id: 'Data Scientist / Engineer', short: 'Data Scientist', color: 'success', gradient: 'from-success/15 to-success/5' },
-  { id: 'Solutions Engineer', short: 'Solutions Eng', color: 'warning', gradient: 'from-warning/15 to-warning/5' },
-  { id: 'Other Engineering', short: 'Other', color: 'text-dim', gradient: 'from-text-dim/10 to-text-dim/5' },
+  { id: 'Speech & Audio ML Engineer', short: 'Speech & Audio ML' },
+  { id: 'ML Engineer', short: 'ML Engineer' },
+  { id: 'AI Engineer', short: 'AI Engineer' },
+  { id: 'Research Scientist', short: 'Research Scientist' },
+  { id: 'Forward Deployed Engineer', short: 'Forward Deployed' },
+  { id: 'NLP Engineer', short: 'NLP Engineer' },
+  { id: 'Staff Software Engineer', short: 'Staff SWE' },
+  { id: 'Senior Software Engineer', short: 'Senior SWE' },
+  { id: 'Software Engineer', short: 'SWE' },
+  { id: 'Product Engineer', short: 'Product Eng' },
+  { id: 'Engineering Leadership', short: 'Leadership' },
+  { id: 'Data Scientist / Engineer', short: 'Data Scientist' },
+  { id: 'Solutions Engineer', short: 'Solutions Eng' },
+  { id: 'Other Engineering', short: 'Other' },
 ];
 
-export default function RoleMatcherPage() {
+export default function RoleMatcherPage({ onSelectRole }) {
   const [stats, setStats] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
   const [candidates, setCandidates] = useState([]);
@@ -28,21 +27,21 @@ export default function RoleMatcherPage() {
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState('current_company');
   const [sortDir, setSortDir] = useState('ASC');
-  const [companyFilter, setCompanyFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => { api.getStats().then(setStats); }, []);
-
   const getCount = (role) => stats?.byCategory?.find(c => c.label === role)?.count || 0;
+  const totalCandidates = stats?.totalCandidates || 0;
 
   const loadCandidates = useCallback(async () => {
     if (!activeRole) return;
     const params = { page, limit: 100, sortBy, sortDir, category: activeRole };
-    if (companyFilter) params.company = companyFilter;
+    if (search) params.search = search;
     const data = await api.getCandidates(params);
     setCandidates(data.candidates);
     setTotal(data.total);
-  }, [activeRole, page, sortBy, sortDir, companyFilter]);
+  }, [activeRole, page, sortBy, sortDir, search]);
 
   useEffect(() => { loadCandidates(); }, [loadCandidates]);
 
@@ -50,7 +49,7 @@ export default function RoleMatcherPage() {
     if (activeRole === role) { setActiveRole(null); return; }
     setActiveRole(role);
     setPage(1);
-    setCompanyFilter('');
+    setSearch('');
   };
 
   const toggleSort = (col) => {
@@ -58,153 +57,157 @@ export default function RoleMatcherPage() {
     else { setSortBy(col); setSortDir('ASC'); }
   };
 
-  const exportRole = (e, role) => {
-    e.stopPropagation();
-    api.exportCSV({ category: role });
+  const SortArrow = ({ col }) => {
+    if (sortBy !== col) return null;
+    return <span className="ml-1 text-brand-light">{sortDir === 'ASC' ? '↑' : '↓'}</span>;
   };
 
-  const scoreColor = (s) => s >= 60 ? 'text-success' : s >= 30 ? 'text-warning' : 'text-text-dim';
+  const seniorityColor = (s) => {
+    const map = { 'Director+': 'bg-danger/15 text-danger', 'Staff/Principal': 'bg-purple/15 text-purple', 'Lead/Manager': 'bg-warning/15 text-warning', 'Senior': 'bg-brand-light/15 text-brand-light', 'Mid-Level': 'bg-text-dim/15 text-text-muted' };
+    return map[s] || 'bg-text-dim/10 text-text-dim';
+  };
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold">Source by Role</h2>
-        <p className="text-text-muted text-sm mt-1">Click a role to view candidates. Export as CSV for any role to pull into your outreach workflow.</p>
+      {/* Page Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Source by Role</h1>
+          <p className="text-sm text-text-muted mt-1">Select a role to view candidates. {totalCandidates.toLocaleString()} total across {ROLES.length} categories.</p>
+        </div>
+        <button onClick={() => api.exportCSV({})}
+          className="px-4 py-2 bg-surface border border-border rounded-lg text-sm text-text-muted hover:text-text-primary hover:border-brand-mid/40 transition-all">
+          Export CSV
+        </button>
       </div>
 
-      {/* Role Cards */}
-      <div className="space-y-2">
+      {/* Role Filter Chips */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setActiveRole(null)}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            !activeRole ? 'bg-brand-mid text-white' : 'bg-surface border border-border text-text-muted hover:text-text-primary hover:border-brand-mid/40'
+          }`}
+        >
+          All Roles
+        </button>
         {ROLES.map(role => {
           const count = getCount(role.id);
-          const isActive = activeRole === role.id;
-
+          if (count === 0) return null;
           return (
-            <div key={role.id}>
-              {/* Role Header Card */}
-              <button
-                onClick={() => selectRole(role.id)}
-                className={`w-full bg-gradient-to-r ${role.gradient} border rounded-lg px-5 py-4 flex items-center justify-between transition-all group ${
-                  isActive ? 'border-brand-light bg-surface-2' : 'border-border hover:border-brand-mid/40'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-1 h-8 rounded-full bg-${role.color}`} />
-                  <div className="text-left">
-                    <h3 className={`font-semibold text-[15px] ${isActive ? 'text-brand-light' : 'text-text-primary group-hover:text-brand-light'} transition-colors`}>
-                      {role.id}
-                    </h3>
-                    <span className="text-xs text-text-dim">{count} candidates</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span className={`text-2xl font-bold text-${role.color}`}>{count}</span>
-                  <button
-                    onClick={(e) => exportRole(e, role.id)}
-                    className="px-3 py-1.5 bg-surface border border-border rounded-md text-xs font-medium text-text-muted hover:text-brand-light hover:border-brand-mid/60 transition-all"
-                  >
-                    Export CSV
-                  </button>
-                  <svg className={`w-4 h-4 text-text-dim transition-transform ${isActive ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </button>
-
-              {/* Expanded Candidate List */}
-              {isActive && (
-                <div className="mt-1 bg-surface border border-border rounded-lg overflow-hidden animate-in">
-                  {/* Sub-filters */}
-                  <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-surface-2/50">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-text-muted">{total} {role.short} candidates</span>
-                      <input
-                        type="text" placeholder="Filter by company..."
-                        value={companyFilter} onChange={e => { setCompanyFilter(e.target.value); setPage(1); }}
-                        className="bg-bg border border-border text-text-primary px-2.5 py-1.5 rounded text-xs w-[200px] focus:outline-none focus:border-brand-mid"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => { setSortBy('first_name'); setSortDir('ASC'); }}
-                        className={`px-2 py-1 rounded text-[10px] font-medium ${sortBy === 'first_name' ? 'bg-brand-mid/20 text-brand-light' : 'text-text-dim hover:text-text-muted'}`}>
-                        A-Z
-                      </button>
-                      <button onClick={() => { setSortBy('current_company'); setSortDir('ASC'); }}
-                        className={`px-2 py-1 rounded text-[10px] font-medium ${sortBy === 'current_company' ? 'bg-brand-mid/20 text-brand-light' : 'text-text-dim hover:text-text-muted'}`}>
-                        Company
-                      </button>
-                      <button onClick={() => { setSortBy('seniority_level'); setSortDir('DESC'); }}
-                        className={`px-2 py-1 rounded text-[10px] font-medium ${sortBy === 'seniority_level' ? 'bg-brand-mid/20 text-brand-light' : 'text-text-dim hover:text-text-muted'}`}>
-                        Seniority
-                      </button>
-                      <button onClick={() => { setSortBy('match_score'); setSortDir('DESC'); }}
-                        className={`px-2 py-1 rounded text-[10px] font-medium ${sortBy === 'match_score' ? 'bg-brand-mid/20 text-brand-light' : 'text-text-dim hover:text-text-muted'}`}>
-                        Score
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Table */}
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/50">
-                        <th className="px-4 py-2.5 text-left text-[10px] text-text-dim uppercase tracking-wider cursor-pointer hover:text-text-muted" onClick={() => toggleSort('first_name')}>
-                          Name {sortBy === 'first_name' && (sortDir === 'ASC' ? '↑' : '↓')}
-                        </th>
-                        <th className="px-4 py-2.5 text-left text-[10px] text-text-dim uppercase tracking-wider">Title</th>
-                        <th className="px-4 py-2.5 text-left text-[10px] text-text-dim uppercase tracking-wider cursor-pointer hover:text-text-muted" onClick={() => toggleSort('current_company')}>
-                          Company {sortBy === 'current_company' && (sortDir === 'ASC' ? '↑' : '↓')}
-                        </th>
-                        <th className="px-4 py-2.5 text-left text-[10px] text-text-dim uppercase tracking-wider cursor-pointer hover:text-text-muted" onClick={() => toggleSort('seniority_level')}>
-                          Seniority {sortBy === 'seniority_level' && (sortDir === 'ASC' ? '↑' : '↓')}
-                        </th>
-                        <th className="px-4 py-2.5 text-left text-[10px] text-text-dim uppercase tracking-wider cursor-pointer hover:text-text-muted" onClick={() => toggleSort('match_score')}>
-                          Score {sortBy === 'match_score' && (sortDir === 'ASC' ? '↑' : '↓')}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {candidates.map(c => (
-                        <tr key={c.id} onClick={() => setSelectedId(c.id)}
-                          className="border-b border-border/20 hover:bg-surface-2/70 cursor-pointer transition-colors">
-                          <td className="px-4 py-2.5 font-medium">
-                            {c.linkedin_url ? (
-                              <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                                className="text-brand-light hover:underline">{c.first_name} {c.last_name}</a>
-                            ) : (
-                              <span className="text-text-primary">{c.first_name} {c.last_name}</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-text-muted text-xs max-w-[250px] truncate" title={c.current_title}>{c.current_title || '-'}</td>
-                          <td className="px-4 py-2.5 text-text-muted">{c.current_company || '-'}</td>
-                          <td className="px-4 py-2.5"><Badge text={c.seniority_level || '-'} /></td>
-                          <td className="px-4 py-2.5"><span className={`font-bold ${scoreColor(c.match_score)}`}>{c.match_score}</span></td>
-                        </tr>
-                      ))}
-                      {candidates.length === 0 && (
-                        <tr><td colSpan={5} className="px-4 py-8 text-center text-text-dim">No candidates found</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-
-                  {/* Pagination */}
-                  {total > 100 && (
-                    <div className="px-4 py-3 border-t border-border/50 flex justify-between items-center text-xs text-text-dim">
-                      <span>Page {page} of {Math.ceil(total / 100)}</span>
-                      <div className="flex gap-1">
-                        <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
-                          className="px-2 py-1 bg-bg border border-border rounded disabled:opacity-30 hover:border-brand-mid/40">Prev</button>
-                        <button disabled={page * 100 >= total} onClick={() => setPage(p => p + 1)}
-                          className="px-2 py-1 bg-bg border border-border rounded disabled:opacity-30 hover:border-brand-mid/40">Next</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <button
+              key={role.id}
+              onClick={() => selectRole(role.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeRole === role.id
+                  ? 'bg-brand-mid text-white'
+                  : 'bg-surface border border-border text-text-muted hover:text-text-primary hover:border-brand-mid/40'
+              }`}
+            >
+              {role.short} <span className="ml-1 opacity-60">({count})</span>
+            </button>
           );
         })}
       </div>
+
+      {/* Search + Count */}
+      <div className="flex items-center gap-4 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <input
+            type="text" placeholder="Search candidate..."
+            value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            className="w-full bg-surface border border-border text-text-primary pl-10 pr-4 py-2.5 rounded-lg text-sm focus:outline-none focus:border-brand-mid/60 transition-colors"
+          />
+          <svg className="absolute left-3 top-3 w-4 h-4 text-text-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        <span className="text-sm text-text-dim">
+          {activeRole ? `${total} of ${totalCandidates.toLocaleString()} candidates` : `${totalCandidates.toLocaleString()} candidates`}
+        </span>
+
+        {activeRole && (
+          <button onClick={() => api.exportCSV({ category: activeRole })}
+            className="px-4 py-2.5 bg-brand-mid text-white rounded-lg text-sm font-medium hover:bg-brand-deep transition-colors">
+            Export {ROLES.find(r => r.id === activeRole)?.short || activeRole}
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="bg-surface border border-border rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-surface-2/50">
+              <th className="px-4 py-3 text-left text-[11px] text-text-dim uppercase tracking-wider font-semibold cursor-pointer hover:text-text-muted select-none" onClick={() => toggleSort('first_name')}>
+                Name<SortArrow col="first_name" />
+              </th>
+              <th className="px-4 py-3 text-left text-[11px] text-text-dim uppercase tracking-wider font-semibold">Title</th>
+              <th className="px-4 py-3 text-left text-[11px] text-text-dim uppercase tracking-wider font-semibold cursor-pointer hover:text-text-muted select-none" onClick={() => toggleSort('current_company')}>
+                Company<SortArrow col="current_company" />
+              </th>
+              <th className="px-4 py-3 text-left text-[11px] text-text-dim uppercase tracking-wider font-semibold">Role</th>
+              <th className="px-4 py-3 text-left text-[11px] text-text-dim uppercase tracking-wider font-semibold cursor-pointer hover:text-text-muted select-none" onClick={() => toggleSort('seniority_level')}>
+                Seniority<SortArrow col="seniority_level" />
+              </th>
+              <th className="px-4 py-3 text-left text-[11px] text-text-dim uppercase tracking-wider font-semibold">Source</th>
+              <th className="px-4 py-3 text-left text-[11px] text-text-dim uppercase tracking-wider font-semibold">LinkedIn</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(activeRole ? candidates : []).map((c, i) => (
+              <tr key={c.id}
+                onClick={() => setSelectedId(c.id)}
+                className={`border-b border-border/30 cursor-pointer transition-colors hover:bg-surface-2/60 ${i % 2 === 0 ? '' : 'bg-surface-2/20'}`}
+              >
+                <td className="px-4 py-3 font-medium text-text-primary">{c.first_name} {c.last_name}</td>
+                <td className="px-4 py-3 text-text-muted max-w-[250px] truncate" title={c.current_title}>{c.current_title || '-'}</td>
+                <td className="px-4 py-3 text-text-primary">{c.current_company || '-'}</td>
+                <td className="px-4 py-3">
+                  <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-brand-light/10 text-brand-light">{c.source_company_category || '-'}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${seniorityColor(c.seniority_level)}`}>{c.seniority_level || '-'}</span>
+                </td>
+                <td className="px-4 py-3 text-text-dim text-xs">{c.search_source || '-'}</td>
+                <td className="px-4 py-3">
+                  {c.linkedin_url ? (
+                    <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                      className="text-brand-light hover:text-brand-mid text-xs">Link</a>
+                  ) : <span className="text-text-dim text-xs">-</span>}
+                </td>
+              </tr>
+            ))}
+            {!activeRole && (
+              <tr>
+                <td colSpan={7} className="px-4 py-16 text-center text-text-dim">
+                  <div className="text-lg mb-2">Select a role above to view candidates</div>
+                  <div className="text-sm">Click any role chip to filter the table</div>
+                </td>
+              </tr>
+            )}
+            {activeRole && candidates.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-text-dim">No candidates found</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {activeRole && total > 100 && (
+        <div className="flex justify-between items-center mt-4 text-sm text-text-dim">
+          <span>Page {page} of {Math.ceil(total / 100)}</span>
+          <div className="flex gap-2">
+            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+              className="px-3 py-1.5 bg-surface border border-border rounded-lg disabled:opacity-30 hover:border-brand-mid/40 transition-colors">Prev</button>
+            <button disabled={page * 100 >= total} onClick={() => setPage(p => p + 1)}
+              className="px-3 py-1.5 bg-surface border border-border rounded-lg disabled:opacity-30 hover:border-brand-mid/40 transition-colors">Next</button>
+          </div>
+        </div>
+      )}
 
       <DetailPanel candidateId={selectedId} onClose={() => setSelectedId(null)} onUpdate={loadCandidates} />
     </div>

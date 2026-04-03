@@ -5,7 +5,8 @@ async function getData() {
   // Try API first, fall back to static JSON
   try {
     const res = await fetch('/api/stats');
-    if (res.ok) {
+    const contentType = res.headers.get('content-type') || '';
+    if (res.ok && contentType.includes('application/json')) {
       _data = { mode: 'api' };
       return _data;
     }
