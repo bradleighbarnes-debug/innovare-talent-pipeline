@@ -1,0 +1,38 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@theme {
+  --color-bg: #060810;
+  --color-surface: #0a0f1a;
+  --color-surface-2: #111827;
+  --color-border: #1e2d42;
+  --color-brand-light: #3ec6f5;
+  --color-brand-mid: #2187e8;
+  --color-brand-deep: #1a5fd4;
+  --color-text-primary: #e8edf5;
+  --color-text-muted: #8b9ab5;
+  --color-text-dim: #5a6f8a;
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-danger: #ef4444;
+  --color-purple: #a78bfa;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+}
+
+code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-dim); }
+
+a { color: var(--color-brand-light); text-decoration: none; }
+a:hover { text-decoration: underline; }
